@@ -4,7 +4,7 @@ if(NOT HAVE_OPENCL)
 endif()
 
 set(the_description "OpenCL-accelerated Computer Vision")
-ocv_add_module(ocl opencv_core opencv_imgproc opencv_calib3d opencv_objdetect opencv_video opencv_nonfree)
+ocv_add_module(ocl opencv_core opencv_imgproc opencv_calib3d opencv_objdetect opencv_video opencv_nonfree opencv_ts)
 
 ocv_module_include_directories()
 
@@ -28,6 +28,14 @@ if (HAVE_OPENCL)
   set(ocl_link_libs ${OPENCL_LIBRARIES})
   if(OPENCL_INCLUDE_DIR)
       ocv_include_directories(${OPENCL_INCLUDE_DIR})
+  endif()
+  if (HAVE_CLAMDFFT)
+	set(ocl_link_libs ${ocl_link_libs} ${CLAMDFFT_LIBRARIES})
+	ocv_include_directories(${CLAMDFFT_INCLUDE_DIR})
+  endif()
+  if (HAVE_CLAMDBLAS)
+	set(ocl_link_libs ${ocl_link_libs} ${CLAMDBLAS_LIBRARIES})
+	ocv_include_directories(${CLAMDBLAS_INCLUDE_DIR})
   endif()
 endif()
 
@@ -56,8 +64,8 @@ ocv_add_accuracy_tests(FILES "Include" ${test_hdrs}
 ################################################################################################################
 ################################   OpenCL Module Performance  ##################################################
 ################################################################################################################
-#file(GLOB perf_srcs "perf/*.cpp")
-#file(GLOB perf_hdrs "perf/*.hpp" "perf/*.h")
+file(GLOB perf_srcs "perf/*.cpp")
+file(GLOB perf_hdrs "perf/*.hpp" "perf/*.h")
 
-#ocv_add_perf_tests(FILES "Include" ${perf_hdrs}
-#                       FILES "Src" ${perf_srcs})
+ocv_add_perf_tests(FILES "Include" ${perf_hdrs}
+                       FILES "Src" ${perf_srcs})

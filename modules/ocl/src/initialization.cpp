@@ -775,7 +775,7 @@ namespace cv
         {
             if(val == 0)
             {
-                AutoLock al(&cs);
+                myAutoLock al(&cs);
                 if( NULL == clCxt.get())
                     clCxt.reset(new Context);
 

@@ -39,7 +39,9 @@
 //
 //M*/
 
-#include "precomp.hpp"
+#include "test_precomp.hpp"
+
+#ifdef HAVE_CUDA
 
 namespace {
 
@@ -1124,4 +1126,71 @@ INSTANTIATE_TEST_CASE_P(GPU_ImgProc, CornerMinEigen, testing::Combine(
     testing::Values(BlockSize(3), BlockSize(5), BlockSize(7)),
     testing::Values(ApertureSize(0), ApertureSize(3), ApertureSize(5), ApertureSize(7))));
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+// HoughLines
+
+PARAM_TEST_CASE(HoughLines, cv::gpu::DeviceInfo, cv::Size, UseRoi)
+{
+    void generateLines(cv::Mat& img)
+    {
+        img.setTo(cv::Scalar::all(0));
+
+        cv::line(img, cv::Point(20, 0), cv::Point(20, img.rows), cv::Scalar::all(255));
+        cv::line(img, cv::Point(0, 50), cv::Point(img.cols, 50), cv::Scalar::all(255));
+        cv::line(img, cv::Point(0, 0), cv::Point(img.cols, img.rows), cv::Scalar::all(255));
+        cv::line(img, cv::Point(img.cols, 0), cv::Point(0, img.rows), cv::Scalar::all(255));
+    }
+
+    void drawLines(cv::Mat& dst, const std::vector<cv::Vec2f>& lines)
+    {
+        dst.setTo(cv::Scalar::all(0));
+
+        for (size_t i = 0; i < lines.size(); ++i)
+        {
+            float rho = lines[i][0], theta = lines[i][1];
+            cv::Point pt1, pt2;
+            double a = std::cos(theta), b = std::sin(theta);
+            double x0 = a*rho, y0 = b*rho;
+            pt1.x = cvRound(x0 + 1000*(-b));
+            pt1.y = cvRound(y0 + 1000*(a));
+            pt2.x = cvRound(x0 - 1000*(-b));
+            pt2.y = cvRound(y0 - 1000*(a));
+            cv::line(dst, pt1, pt2, cv::Scalar::all(255));
+        }
+    }
+};
+
+TEST_P(HoughLines, Accuracy)
+{
+    const cv::gpu::DeviceInfo devInfo = GET_PARAM(0);
+    cv::gpu::setDevice(devInfo.deviceID());
+    const cv::Size size = GET_PARAM(1);
+    const bool useRoi = GET_PARAM(2);
+
+    const float rho = 1.0f;
+    const float theta = 1.5f * CV_PI / 180.0f;
+    const int threshold = 100;
+
+    cv::Mat src(size, CV_8UC1);
+    generateLines(src);
+
+    cv::gpu::GpuMat d_lines;
+    cv::gpu::HoughLines(loadMat(src, useRoi), d_lines, rho, theta, threshold);
+
+    std::vector<cv::Vec2f> lines;
+    cv::gpu::HoughLinesDownload(d_lines, lines);
+
+    cv::Mat dst(size, CV_8UC1);
+    drawLines(dst, lines);
+
+    ASSERT_MAT_NEAR(src, dst, 0.0);
+}
+
+INSTANTIATE_TEST_CASE_P(GPU_ImgProc, HoughLines, testing::Combine(
+    ALL_DEVICES,
+    DIFFERENT_SIZES,
+    WHOLE_SUBMAT));
+
 } // namespace
+
+#endif // HAVE_CUDA

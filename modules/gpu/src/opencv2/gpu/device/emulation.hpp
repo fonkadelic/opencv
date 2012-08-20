@@ -50,6 +50,17 @@ namespace cv { namespace gpu { namespace device
 {
     struct Emulation
     {
+
+        static __device__ __forceinline__ int syncthreadsOr(int pred)
+        {
+#if defined (__CUDA_ARCH__) && (__CUDA_ARCH__ < 200)
+                // just campilation stab
+                return 0;
+#else
+                return __syncthreads_or(pred);
+#endif
+        }
+
         template<int CTA_SIZE>
         static __forceinline__ __device__ int Ballot(int predicate)
         {
@@ -88,7 +99,7 @@ namespace cv { namespace gpu { namespace device
             }
 
             template<typename T>
-            static __device__ __forceinline__ void atomicAdd(T* address, T val)
+            static __device__ __forceinline__ T atomicAdd(T* address, T val)
             {
 #if defined (__CUDA_ARCH__) && (__CUDA_ARCH__ < 120)
                 T count;
@@ -99,8 +110,10 @@ namespace cv { namespace gpu { namespace device
                     count = tag | (count + val);
                     *address = count;
                 } while (*address != count);
+
+                return (count & TAG_MASK) - val;
 #else
-                ::atomicAdd(address, val);
+                return ::atomicAdd(address, val);
 #endif
             }
 
@@ -108,7 +121,7 @@ namespace cv { namespace gpu { namespace device
             static __device__ __forceinline__ T atomicMin(T* address, T val)
             {
 #if defined (__CUDA_ARCH__) && (__CUDA_ARCH__ < 120)
-                T count = min(*address, val);
+                T count = ::min(*address, val);
                 do
                 {
                     *address = count;
